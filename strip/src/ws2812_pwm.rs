@@ -14,7 +14,6 @@ use embassy_nrf::{
     Peri,
 };
 use embassy_time::Timer;
-use embedded_dma as dma;
 use smart_leds::{SmartLedsWriteAsync, RGB8};
 
 /// Error during WS2812 driver operation.
@@ -89,13 +88,6 @@ impl<const N: usize> core::ops::Deref for DmaBuffer<N> {
 impl<const N: usize> DerefMut for DmaBuffer<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-unsafe impl<const N: usize> dma::ReadBuffer for DmaBuffer<N> {
-    type Word = u16;
-    unsafe fn read_buffer(&self) -> (*const Self::Word, usize) {
-        (self.0.as_ptr(), self.0.len())
     }
 }
 
