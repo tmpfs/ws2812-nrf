@@ -114,6 +114,21 @@ impl<const N: usize> Ws2812<N> {
             buf: Some(DmaBuffer::default()),
         }
     }
+    
+    /// Number of microseconds to wait for a sequence duty cycle
+    /// to run once.
+    fn delay_micros(&self) -> u64 {
+        let num_leds: usize = 8;
+        // Each LED requires 24 bits (8 bits each for G, R, B)
+        let num_bits = num_leds * 24;
+        // Each bit takes FRAME_NS nanoseconds to transmit
+        let active_time_ns = num_bits as u32 * FRAME_NS;
+        // Convert active time to microseconds
+        let active_time_us = active_time_ns / 1000;
+        // Add reset time (already in microseconds)
+        let total_time_us = active_time_us + RESET_TIME;
+        total_time_us as u64
+    }
 }
 
 impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
@@ -145,8 +160,9 @@ impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
 
         seq.start(pwm::SingleSequenceMode::Times(1)).unwrap();
 
-        // TODO: compute delay properly
-        Timer::after_millis(1).await;
+        defmt::info!("delay: {}", self.delay_micros());
+
+        Timer::after_micros(self.delay_micros()).await;
 
         drop(seq);
         self.pwm = Some(pwm);
