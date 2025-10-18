@@ -16,28 +16,6 @@ use embassy_nrf::{
 use embassy_time::Timer;
 use smart_leds::{SmartLedsWriteAsync, RGB8};
 
-/// Error during WS2812 driver operation.
-pub enum Error {
-    /// PWM error.
-    PwmError(pwm::Error),
-}
-
-impl core::fmt::Debug for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::PwmError(err) => write!(f, "pwm error: {:?}", err),
-        }
-    }
-}
-
-/// Driver for a chain of WS2812-family devices using
-/// PWM. The constant `N` should be 24 times the number of
-/// chips in the chain.
-pub struct Ws2812<const N: usize> {
-    pwm: Option<pwm::SequencePwm<'static, PWM0>>,
-    buf: Option<DmaBuffer<N>>,
-}
-
 /// WS2812 0-bit high time in ns.
 const T0H_NS: u32 = 400;
 /// WS2812 1-bit high time in ns.
@@ -91,6 +69,28 @@ impl<const N: usize> DerefMut for DmaBuffer<N> {
     }
 }
 
+/// Error during WS2812 driver operation.
+pub enum Error {
+    /// PWM error.
+    PwmError(pwm::Error),
+}
+
+impl core::fmt::Debug for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::PwmError(err) => write!(f, "pwm error: {:?}", err),
+        }
+    }
+}
+
+/// Driver for a chain of WS2812-family devices using
+/// PWM. The constant `N` should be 24 times the number of
+/// chips in the chain.
+pub struct Ws2812<const N: usize> {
+    pwm: Option<pwm::SequencePwm<'static, PWM0>>,
+    buf: Option<DmaBuffer<N>>,
+}
+
 impl<const N: usize> Ws2812<N> {
     /// Set up WS2812 chain with PWM and an output pin.
     pub fn new(pwm: Peri<'static, PWM0>, pin: Peri<'static, P0_13>) -> Self {
@@ -114,7 +114,7 @@ impl<const N: usize> Ws2812<N> {
             buf: Some(DmaBuffer::default()),
         }
     }
-    
+
     /// Number of microseconds to wait for a sequence duty cycle
     /// to run once.
     fn delay_micros(&self) -> u64 {
@@ -142,7 +142,6 @@ impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
         I: Into<Self::Color>,
     {
         let mut buffer = self.buf.take().unwrap();
-
         for (item, locs) in iterator.into_iter().zip(buffer.chunks_mut(24)) {
             let item = item.into();
             let color = ((item.g as u32) << 16) | ((item.r as u32) << 8) | (item.b as u32);
@@ -159,12 +158,10 @@ impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
         let seq = SingleSequencer::new(&mut pwm, buffer.as_ref(), conf);
 
         seq.start(pwm::SingleSequenceMode::Times(1)).unwrap();
-
-        defmt::info!("delay: {}", self.delay_micros());
-
         Timer::after_micros(self.delay_micros()).await;
 
         drop(seq);
+
         self.pwm = Some(pwm);
         self.buf = Some(buffer);
 
