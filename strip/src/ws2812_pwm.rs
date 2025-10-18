@@ -27,6 +27,9 @@ const RESET_TIME: u32 = 270;
 /// PWM clock in MHz.
 const PWM_CLOCK: u32 = 16;
 
+/// Size of the RGB color definition.
+const RGB_SIZE: usize = 24;
+
 /// Convert nanoseconds to PWM ticks, rounding.
 const fn to_ticks(ns: u32) -> u32 {
     (ns * PWM_CLOCK + 500) / 1000
@@ -45,9 +48,7 @@ const BITS: [u16; 2] = [
 /// Total PWM period in ticks.
 const PWM_PERIOD: u16 = to_ticks(FRAME_NS) as u16;
 
-type Seq<const N: usize> = [u16; N];
-
-struct DmaBuffer<const N: usize>(Seq<N>);
+struct DmaBuffer<const N: usize>([u16; N]);
 
 impl<const N: usize> Default for DmaBuffer<N> {
     fn default() -> Self {
@@ -56,7 +57,7 @@ impl<const N: usize> Default for DmaBuffer<N> {
 }
 
 impl<const N: usize> core::ops::Deref for DmaBuffer<N> {
-    type Target = Seq<N>;
+    type Target = [u16; N];
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -84,8 +85,7 @@ impl core::fmt::Debug for Error {
 }
 
 /// Driver for a chain of WS2812-family devices using
-/// PWM. The constant `N` should be 24 times the number of
-/// chips in the chain.
+/// PWM.
 pub struct Ws2812<const N: usize> {
     pwm: Option<pwm::SequencePwm<'static, PWM0>>,
     buf: Option<DmaBuffer<N>>,
@@ -120,7 +120,7 @@ impl<const N: usize> Ws2812<N> {
     fn delay_micros(&self) -> u64 {
         let num_leds: usize = 8;
         // Each LED requires 24 bits (8 bits each for G, R, B)
-        let num_bits = num_leds * 24;
+        let num_bits = num_leds * RGB_SIZE;
         // Each bit takes FRAME_NS nanoseconds to transmit
         let active_time_ns = num_bits as u32 * FRAME_NS;
         // Convert active time to microseconds
@@ -142,7 +142,7 @@ impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
         I: Into<Self::Color>,
     {
         let mut buffer = self.buf.take().unwrap();
-        for (item, locs) in iterator.into_iter().zip(buffer.chunks_mut(24)) {
+        for (item, locs) in iterator.into_iter().zip(buffer.chunks_mut(RGB_SIZE)) {
             let item = item.into();
             let color = ((item.g as u32) << 16) | ((item.r as u32) << 8) | (item.b as u32);
             for (i, loc) in locs.iter_mut().enumerate() {
