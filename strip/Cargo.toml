@@ -15,6 +15,7 @@ embassy-futures = "0.1.1"
 embassy-sync = { version = "0.7", features = ["defmt"] }
 
 embedded-hal = "1"
+embedded-dma = "0.2"
 
 futures = { version = "0.3", default-features = false, features = ["async-await"]}
 nrf-sdc = { version = "0.4", default-features = false, features = ["defmt", "peripheral", "central", "nrf52840"] }
@@ -35,9 +36,6 @@ rand_core = { version = "0.6"}
 rand_chacha = { version = "0.3", default-features = false }
 
 smart-leds = "0.4"
-
-[features]
-slow = []
 
 [[bin]]
 name = "strip"

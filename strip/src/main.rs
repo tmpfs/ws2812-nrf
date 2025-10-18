@@ -1,25 +1,16 @@
 #![no_std]
 #![no_main]
 
-use defmt::unwrap;
 use embassy_executor::Spawner;
-use embassy_nrf::gpio::{Level, Output, OutputDrive};
-use embassy_nrf::mode::Async;
 use embassy_nrf::peripherals::RNG;
 use embassy_nrf::{bind_interrupts, rng};
-use embassy_time::Delay;
-use nrf_sdc::mpsl::MultiprotocolServiceLayer;
-use nrf_sdc::{self as sdc, mpsl};
-use smart_leds::colors;
-use static_cell::StaticCell;
-// use trouble_example_apps::ble_bas_peripheral;
-// use trouble_host::prelude::*;
+use embassy_time::{Duration, Timer};
 use smart_leds::{
     brightness,
     hsv::{hsv2rgb, Hsv},
-    SmartLedsWrite as _, RGB8,
+    SmartLedsWriteAsync as _, RGB8,
 };
-use ws2812_nrf52_strip::ws2812_timer::Ws2812;
+use ws2812_nrf52_strip::ws2812_pwm::Ws2812;
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -32,17 +23,11 @@ bind_interrupts!(struct Irqs {
 });
 
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
+    let mut ws: Ws2812<{ 8 * 24 }> = Ws2812::new(p.PWM0, p.P0_13);
 
-    let mut pin = Output::new(p.P0_13, Level::Low, OutputDrive::Standard);
-
-    let mut ws = Ws2812::new(Delay, &mut pin);
-
-    defmt::info!("Running...");
-
-    // // Prepare some colors
-    // let colors = [
+    // let data = [
     //     RGB8::new(10, 0, 0), // Red
     //     RGB8::new(0, 10, 0), // Green
     //     RGB8::new(0, 0, 10), // Blue
@@ -53,29 +38,17 @@ async fn main(spawner: Spawner) {
     //     RGB8::new(0, 0, 10), // Blue
     // ];
 
-    // Define your 8 LEDs
-    let mut data = [RGB8::default(); 8];
+    // let mut data = [RGB8::default(); 8];
+    // data[0] = colors::RED;
+    // data[1] = colors::GREEN;
+    // data[2] = colors::BLUE;
+    // data[3] = colors::WHITE;
+    // data[4] = colors::YELLOW;
+    // data[5] = colors::CYAN;
+    // data[6] = colors::MAGENTA;
+    // data[7] = RGB8 { r: 10, g: 0, b: 5 };
 
-    // Set them to different colors
-    data[0] = colors::RED;
-    data[1] = colors::GREEN;
-    data[2] = colors::BLUE;
-    data[3] = colors::WHITE;
-    data[4] = colors::YELLOW;
-    data[5] = colors::CYAN;
-    data[6] = colors::MAGENTA;
-    data[7] = RGB8 { r: 10, g: 0, b: 5 };
-
-    // Send them to the LED strip
-    ws.write(data.iter().cloned()).unwrap();
-
-    /*
-    let mut led = {
-        let frequency = Rate::from_mhz(80);
-        let rmt = Rmt::new(p.RMT, frequency).expect("Failed to initialize RMT0");
-        SmartLedsAdapter::new(rmt.channel0, p.GPIO17, smart_led_buffer!(8))
-    };
-    */
+    // ws.write(data.iter().cloned()).await.unwrap();
 
     /*
     let level = 10;
@@ -84,7 +57,6 @@ async fn main(spawner: Spawner) {
     loop {}
     */
 
-    /*
     let mut hue_offset = 0u8;
 
     loop {
@@ -102,15 +74,14 @@ async fn main(spawner: Spawner) {
         }
 
         // Write colors with brightness control
-        led.write(brightness(colors.into_iter(), 64)).unwrap();
+        ws.write(brightness(colors.into_iter(), 64)).await.unwrap();
 
         // Advance the rainbow
         hue_offset = hue_offset.wrapping_add(4);
 
         // Wait before next frame
-        Timer::after(Duration::from_millis(50)).await;
+        Timer::after(Duration::from_millis(25)).await;
     }
-    */
 
-    loop {}
+    // loop {}
 }
