@@ -10,6 +10,7 @@ use smart_leds::{
     hsv::{hsv2rgb, Hsv},
     SmartLedsWriteAsync as _, RGB8,
 };
+use static_cell::StaticCell;
 use ws2812_nrf52_strip::ws2812_pwm::Ws2812;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -22,10 +23,15 @@ bind_interrupts!(struct Irqs {
     RTC0 => nrf_sdc::mpsl::HighPrioInterruptHandler;
 });
 
+const BUFFER_SIZE: usize = 8 * 24;
+static LED_BUFFER: StaticCell<[u16; BUFFER_SIZE]> = StaticCell::new();
+
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
-    let mut ws: Ws2812<PWM0, { 8 * 24 }> = Ws2812::new(p.PWM0, p.P0_13);
+
+    let buf = LED_BUFFER.init([0u16; BUFFER_SIZE]);
+    let mut ws: Ws2812<PWM0, { 8 * 24 }> = Ws2812::new(p.PWM0, p.P0_13, buf);
 
     // let data = [
     //     RGB8::new(10, 0, 0), // Red
