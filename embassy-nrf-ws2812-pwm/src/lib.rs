@@ -9,7 +9,8 @@
 
 use embassy_nrf::{Peri, gpio, pwm};
 use embassy_time::{Timer, block_for};
-use smart_leds::{RGB8, SmartLedsWrite, SmartLedsWriteAsync};
+use rgb::RGB8;
+use smart_leds_trait::{SmartLedsWrite, SmartLedsWriteAsync};
 
 /// WS2812 0-bit high time in ns.
 const T0H_NS: u32 = 400;
