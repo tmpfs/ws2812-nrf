@@ -1,9 +1,11 @@
 #![no_std]
 #![no_main]
 
-use ble_gatt_server::gatt_server::run;
+use ble_gatt_server::gatt_server::NOTIFIER;
+use ble_gatt_server::{gatt_server::run, led_mode::LedMode};
 use defmt::unwrap;
 use embassy_executor::Spawner;
+use embassy_futures::join::join;
 use embassy_nrf::mode::Async;
 use embassy_nrf::peripherals;
 use embassy_nrf::{bind_interrupts, rng};
@@ -11,6 +13,7 @@ use embassy_nrf_ws2812_pwm::Ws2812;
 use embassy_time::{Duration, Timer};
 use nrf_sdc::mpsl::MultiprotocolServiceLayer;
 use nrf_sdc::{self as sdc, mpsl};
+use smart_leds::colors;
 use smart_leds::{
     RGB8, SmartLedsWriteAsync as _, brightness,
     hsv::{Hsv, hsv2rgb},
@@ -92,39 +95,8 @@ async fn main(spawner: Spawner) {
     let sdc = unwrap!(build_sdc(sdc_p, &mut rng, mpsl, &mut sdc_mem));
 
     let buf = LED_BUFFER.init([0u16; BUFFER_SIZE]);
-    let mut ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_13, buf);
-
-    // let data = [
-    //     RGB8::new(10, 0, 0), // Red
-    //     RGB8::new(0, 10, 0), // Green
-    //     RGB8::new(0, 0, 10), // Blue
-    //     RGB8::new(0, 0, 10), // Blue
-    //     RGB8::new(0, 0, 10), // Blue
-    //     RGB8::new(0, 0, 10), // Blue
-    //     RGB8::new(0, 0, 10), // Blue
-    //     RGB8::new(0, 0, 10), // Blue
-    // ];
-
-    // let mut data = [RGB8::default(); 8];
-    // data[0] = colors::RED;
-    // data[1] = colors::GREEN;
-    // data[2] = colors::BLUE;
-    // data[3] = colors::WHITE;
-    // data[4] = colors::YELLOW;
-    // data[5] = colors::CYAN;
-    // data[6] = colors::MAGENTA;
-    // data[7] = RGB8 { r: 10, g: 0, b: 5 };
-
-    // ws.write(data.iter().cloned()).await.unwrap();
-
-    /*
-    let level = 10;
-    led.write(brightness([RED, GREEN, BLUE].into_iter(), level))
-        .unwrap();
-    loop {}
-    */
-
-    run(sdc, "WLED BLE").await;
+    let ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_13, buf);
+    let _ = join(run(sdc, "WLED BLE", LedMode::Off), led_manager(ws)).await;
 
     /*
     let mut hue_offset = 0u8;
@@ -153,4 +125,30 @@ async fn main(spawner: Spawner) {
         Timer::after(Duration::from_millis(25)).await;
     }
     */
+}
+
+async fn led_manager(mut ws: Ws2812<BUFFER_SIZE>) -> ! {
+    loop {
+        let mode = NOTIFIER.wait().await;
+        defmt::info!("mode: {}", mode);
+
+        match mode {
+            LedMode::Off => {
+                let data = [RGB8::new(0, 0, 0); 8];
+                ws.write(data.into_iter()).await.unwrap();
+            }
+            LedMode::Red => {
+                let data = [colors::RED; 8];
+                ws.write(data.into_iter()).await.unwrap();
+            }
+            LedMode::Green => {
+                let data = [colors::GREEN; 8];
+                ws.write(data.into_iter()).await.unwrap();
+            }
+            LedMode::Blue => {
+                let data = [colors::BLUE; 8];
+                ws.write(data.into_iter()).await.unwrap();
+            }
+        }
+    }
 }

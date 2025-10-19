@@ -1,7 +1,11 @@
+use crate::led_mode::LedMode;
 use defmt::{info, warn};
-use embassy_futures::{join::join, select::select};
-use embassy_time::Timer;
+use embassy_futures::join::join;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
 use trouble_host::prelude::*;
+
+pub static NOTIFIER: Signal<CriticalSectionRawMutex, LedMode> = Signal::new();
 
 /// Max number of connections
 const CONNECTIONS_MAX: usize = 1;
@@ -25,7 +29,7 @@ struct LedService {
 }
 
 /// Run the BLE stack.
-pub async fn run<C>(controller: C, name: &str)
+pub async fn run<C>(controller: C, name: &str, mode: LedMode)
 where
     C: Controller,
 {
@@ -47,6 +51,9 @@ where
         appearance: &appearance::display_equipment::GENERIC_DISPLAY_EQUIPMENT,
     }))
     .unwrap();
+
+    let handle = &server.led_service.mode;
+    server.set(handle, &(mode as u8)).unwrap();
 
     let _ = join(ble_task(runner), async {
         loop {
@@ -100,6 +107,12 @@ async fn gatt_events_task<P: PacketPool>(
                                 "[gatt] Write Event to mode Characteristic: {:?}",
                                 event.data()
                             );
+
+                            if let Ok(mode) = LedMode::try_from(event.data()[0]) {
+                                NOTIFIER.signal(mode);
+                            } else {
+                                warn!("invalid LED mode, ignoring");
+                            }
                         }
                     }
                     _ => {}
@@ -128,7 +141,7 @@ async fn advertise<'values, 'server, C: Controller>(
     let len = AdStructure::encode_slice(
         &[
             AdStructure::Flags(LE_GENERAL_DISCOVERABLE | BR_EDR_NOT_SUPPORTED),
-            AdStructure::ServiceUuids16(&[[0x0f, 0x18]]),
+            AdStructure::ServiceUuids16(&[[0x49, 0x18]]),
             AdStructure::CompleteLocalName(name.as_bytes()),
         ],
         &mut advertiser_data[..],
