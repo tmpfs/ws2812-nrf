@@ -50,8 +50,8 @@ const PWM_PERIOD: u16 = to_ticks(FRAME_NS) as u16;
 
 struct DmaBuffer<const N: usize>([u16; N]);
 
-impl<const N: usize> Default for DmaBuffer<N> {
-    fn default() -> Self {
+impl<const N: usize> DmaBuffer<N> {
+    fn new() -> Self {
         DmaBuffer([0; N])
     }
 }
@@ -85,8 +85,9 @@ impl core::fmt::Debug for Error {
 }
 
 /// Driver for a chain of WS2812-family devices using
-/// PWM.
+/// PWM. The `N` value must be a multiple of 24.
 pub struct Ws2812<const N: usize> {
+    num_leds: usize,
     pwm: Option<pwm::SequencePwm<'static, PWM0>>,
     buf: Option<DmaBuffer<N>>,
 }
@@ -98,6 +99,8 @@ impl<const N: usize> Ws2812<N> {
         // defmt::info!("RESET_TICKS: {}", RESET_TICKS);
         // defmt::info!("RESET_TIME: {}", RESET_TIME);
 
+        assert!(N % RGB_SIZE == 0);
+        let num_leds = N / RGB_SIZE;
         let mut config = pwm::Config::default();
         config.counter_mode = CounterMode::Up;
         config.max_duty = PWM_PERIOD;
@@ -110,17 +113,17 @@ impl<const N: usize> Ws2812<N> {
         let pwm = pwm::SequencePwm::new_1ch(pwm, pin, config).expect("to create pwm");
 
         Self {
+            num_leds,
             pwm: Some(pwm),
-            buf: Some(DmaBuffer::default()),
+            buf: Some(DmaBuffer::<N>::new()),
         }
     }
 
     /// Number of microseconds to wait for a sequence duty cycle
     /// to run once.
     fn delay_micros(&self) -> u64 {
-        let num_leds: usize = 8;
         // Each LED requires 24 bits (8 bits each for G, R, B)
-        let num_bits = num_leds * RGB_SIZE;
+        let num_bits = self.num_leds * RGB_SIZE;
         // Each bit takes FRAME_NS nanoseconds to transmit
         let active_time_ns = num_bits as u32 * FRAME_NS;
         // Convert active time to microseconds
