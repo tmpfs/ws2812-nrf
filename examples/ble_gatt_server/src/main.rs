@@ -124,7 +124,7 @@ async fn main(spawner: Spawner) {
     loop {}
     */
 
-    run(sdc).await;
+    run(sdc, "WLED BLE").await;
 
     /*
     let mut hue_offset = 0u8;
