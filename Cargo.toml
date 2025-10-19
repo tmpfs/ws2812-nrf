@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "embassy-nrf-ws2812-pwm",
   "strip",
 ]
 resolver = "2"
@@ -23,7 +24,7 @@ panic = "abort"
 
 [workspace.dependencies]
 [patch.crates-io]
-nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc.git", rev = "1bc7380cd5d7a031f37511b69da13fc6caded816"}
-nrf-mpsl = { git = "https://github.com/alexmoon/nrf-sdc.git", rev = "1bc7380cd5d7a031f37511b69da13fc6caded816"}
+nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc.git", rev = "11d5c3c3653af73b511133c2f8231f33eb0696f4"}
+nrf-mpsl = { git = "https://github.com/alexmoon/nrf-sdc.git", rev = "11d5c3c3653af73b511133c2f8231f33eb0696f4"}
 #bt-hci = { git = "https://github.com/embassy-rs/bt-hci.git", rev = "83a9e179ff019ed60abb73705f54383f89fc60fc" }
 

@@ -1,12 +1,15 @@
-//! Use WS2812 LEDs (aka Neopixel) with nRF52xx PWM and the embassy ecosystem.
+//! Use WS2812 LEDs (aka Neopixel) with nRFxx PWM and the embassy ecosystem.
 //!
 //! This crate is intended for usage with the `smart-leds`
 //! crate it implements the `SmartLedsWriteAsync` trait.
 //!
 //! Based on [ws2812-nrf52833-pwm](https://github.com/BartMassey/ws2812-nrf52833-pwm).
-use embassy_nrf::{gpio, pwm, Peri};
-use embassy_time::{block_for, Timer};
-use smart_leds::{SmartLedsWrite, SmartLedsWriteAsync, RGB8};
+
+#![no_std]
+
+use embassy_nrf::{Peri, gpio, pwm};
+use embassy_time::{Timer, block_for};
+use smart_leds::{RGB8, SmartLedsWrite, SmartLedsWriteAsync};
 
 /// WS2812 0-bit high time in ns.
 const T0H_NS: u32 = 400;
@@ -56,20 +59,24 @@ impl From<pwm::Error> for Error {
 /// PWM and a single GPIO.
 ///
 /// The `N` value must be a multiple of 24.
-pub struct Ws2812<Pwm: pwm::Instance, const N: usize> {
+pub struct Ws2812<const N: usize> {
     num_leds: usize,
-    pwm: Option<pwm::SequencePwm<'static, Pwm>>,
+    pwm: Option<pwm::SequencePwm<'static>>,
     buf: &'static mut [u16; N],
 }
 
-impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
+impl<const N: usize> Ws2812<N> {
     /// Set up WS2812 chain with PWM and an output pin.
-    pub fn new<P: gpio::Pin>(
+    pub fn new<Pwm: pwm::Instance, P: gpio::Pin>(
         pwm: Peri<'static, Pwm>,
         pin: Peri<'static, P>,
         buf: &'static mut [u16; N],
     ) -> Self {
-        assert!(N % RGB_SIZE == 0, "N must be a multiple of 24");
+        assert!(
+            N.is_multiple_of(RGB_SIZE),
+            "N must be a multiple of {}",
+            RGB_SIZE
+        );
 
         let num_leds = N / RGB_SIZE;
         let mut config = pwm::Config::default();
@@ -128,7 +135,7 @@ impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
     }
 }
 
-impl<Pwm: pwm::Instance, const N: usize> SmartLedsWrite for Ws2812<Pwm, N> {
+impl<const N: usize> SmartLedsWrite for Ws2812<N> {
     type Error = Error;
     type Color = RGB8;
 
@@ -152,7 +159,7 @@ impl<Pwm: pwm::Instance, const N: usize> SmartLedsWrite for Ws2812<Pwm, N> {
     }
 }
 
-impl<Pwm: pwm::Instance, const N: usize> SmartLedsWriteAsync for Ws2812<Pwm, N> {
+impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
     type Error = Error;
     type Color = RGB8;
 

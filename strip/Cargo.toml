@@ -1,13 +1,14 @@
 [package]
-edition      = "2021"
+edition      = "2024"
 name         = "ws2812-nrf52-strip"
 rust-version = "1.86"
 version      = "0.1.0"
+publish = false
 
 [dependencies]
 embassy-executor = { version = "0.9", default-features = false, features = ["arch-cortex-m", "executor-thread", "defmt", "executor-interrupt"] }
 embassy-time = { version = "0.5", default-features = false, features = ["defmt", "defmt-timestamp-uptime"] }
-embassy-nrf = { version = "0.7", default-features = false, features = ["defmt", "time-driver-rtc1", "gpiote", "unstable-pac", "rt", "nrf52840"] }
+embassy-nrf = { version = "0.8", default-features = false, features = ["defmt", "time-driver-rtc1", "gpiote", "unstable-pac", "rt", "nrf52840"] }
 embassy-futures = "0.1.1"
 embassy-sync = { version = "0.7", features = ["defmt"] }
 
@@ -28,6 +29,7 @@ rand_core = { version = "0.6"}
 rand_chacha = { version = "0.3", default-features = false }
 
 smart-leds = "0.4"
+embassy-nrf-ws2812-pwm = { path = "../embassy-nrf-ws2812-pwm/" }
 
 [[bin]]
 name = "strip"

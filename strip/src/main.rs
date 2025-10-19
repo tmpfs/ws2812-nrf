@@ -2,16 +2,15 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_nrf::peripherals::{PWM0, RNG};
+use embassy_nrf::peripherals::RNG;
 use embassy_nrf::{bind_interrupts, rng};
+use embassy_nrf_ws2812_pwm::Ws2812;
 use embassy_time::{Duration, Timer};
 use smart_leds::{
-    brightness,
-    hsv::{hsv2rgb, Hsv},
-    SmartLedsWriteAsync as _, RGB8,
+    RGB8, SmartLedsWriteAsync as _, brightness,
+    hsv::{Hsv, hsv2rgb},
 };
 use static_cell::StaticCell;
-use ws2812_nrf52_strip::ws2812_pwm::Ws2812;
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -32,7 +31,7 @@ async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
 
     let buf = LED_BUFFER.init([0u16; BUFFER_SIZE]);
-    let mut ws: Ws2812<PWM0, _> = Ws2812::new(p.PWM0, p.P0_13, buf);
+    let mut ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_13, buf);
 
     // let data = [
     //     RGB8::new(10, 0, 0), // Red
