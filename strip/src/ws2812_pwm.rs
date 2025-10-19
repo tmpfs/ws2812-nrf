@@ -4,12 +4,7 @@
 //! crate it implements the `SmartLedsWriteAsync` trait.
 //!
 //! Based on [ws2812-nrf52833-pwm](https://github.com/BartMassey/ws2812-nrf52833-pwm).
-
-use embassy_nrf::{
-    gpio::{self, OutputDrive},
-    pwm::{self, CounterMode, SequenceConfig, SingleSequencer},
-    Peri,
-};
+use embassy_nrf::{gpio, pwm, Peri};
 use embassy_time::{block_for, Timer};
 use smart_leds::{SmartLedsWrite, SmartLedsWriteAsync, RGB8};
 
@@ -78,14 +73,14 @@ impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
 
         let num_leds = N / RGB_SIZE;
         let mut config = pwm::Config::default();
-        config.counter_mode = CounterMode::Up;
+        config.counter_mode = pwm::CounterMode::Up;
         config.max_duty = PWM_PERIOD;
         config.prescaler = pwm::Prescaler::Div1;
         config.sequence_load = pwm::SequenceLoad::Common;
-        config.ch0_drive = OutputDrive::HighDrive0Standard1;
-        config.ch1_drive = OutputDrive::HighDrive0Standard1;
-        config.ch2_drive = OutputDrive::HighDrive0Standard1;
-        config.ch3_drive = OutputDrive::HighDrive0Standard1;
+        config.ch0_drive = gpio::OutputDrive::HighDrive0Standard1;
+        config.ch1_drive = gpio::OutputDrive::HighDrive0Standard1;
+        config.ch2_drive = gpio::OutputDrive::HighDrive0Standard1;
+        config.ch3_drive = gpio::OutputDrive::HighDrive0Standard1;
         let pwm = pwm::SequencePwm::new_1ch(pwm, pin, config).expect("to create sequence PWM");
         Self {
             num_leds,
@@ -125,8 +120,8 @@ impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
     }
 
     #[inline(always)]
-    fn sequence_config(&self) -> SequenceConfig {
-        let mut conf = SequenceConfig::default();
+    fn sequence_config(&self) -> pwm::SequenceConfig {
+        let mut conf = pwm::SequenceConfig::default();
         conf.refresh = 0;
         conf.end_delay = RESET_TICKS;
         conf
@@ -145,7 +140,7 @@ impl<Pwm: pwm::Instance, const N: usize> SmartLedsWrite for Ws2812<Pwm, N> {
     {
         self.write_buffer(iterator);
         let mut pwm = self.pwm.take().expect("to take sequence PWM");
-        let seq = SingleSequencer::new(&mut pwm, &*self.buf, self.sequence_config());
+        let seq = pwm::SingleSequencer::new(&mut pwm, &*self.buf, self.sequence_config());
         seq.start(pwm::SingleSequenceMode::Times(1))?;
 
         block_for(embassy_time::Duration::from_micros(self.delay_micros()));
@@ -169,7 +164,7 @@ impl<Pwm: pwm::Instance, const N: usize> SmartLedsWriteAsync for Ws2812<Pwm, N> 
     {
         self.write_buffer(iterator);
         let mut pwm = self.pwm.take().expect("to take sequence PWM");
-        let seq = SingleSequencer::new(&mut pwm, &*self.buf, self.sequence_config());
+        let seq = pwm::SingleSequencer::new(&mut pwm, &*self.buf, self.sequence_config());
         seq.start(pwm::SingleSequenceMode::Times(1))?;
         Timer::after_micros(self.delay_micros()).await;
 
