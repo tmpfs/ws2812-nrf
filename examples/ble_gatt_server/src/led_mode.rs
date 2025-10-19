@@ -5,6 +5,7 @@ pub enum LedMode {
     Red = 1,
     Green = 2,
     Blue = 3,
+    Rainbow = 4,
 }
 
 impl TryFrom<u8> for LedMode {
@@ -16,6 +17,7 @@ impl TryFrom<u8> for LedMode {
             1 => LedMode::Red,
             2 => LedMode::Green,
             3 => LedMode::Blue,
+            4 => LedMode::Rainbow,
             _ => return Err("invalid LED mode"),
         })
     }

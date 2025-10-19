@@ -6,6 +6,7 @@ use ble_gatt_server::{gatt_server::run, led_mode::LedMode};
 use defmt::unwrap;
 use embassy_executor::Spawner;
 use embassy_futures::join::join;
+use embassy_futures::select::{Either, select};
 use embassy_nrf::mode::Async;
 use embassy_nrf::peripherals;
 use embassy_nrf::{bind_interrupts, rng};
@@ -96,58 +97,68 @@ async fn main(spawner: Spawner) {
 
     let buf = LED_BUFFER.init([0u16; BUFFER_SIZE]);
     let ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_13, buf);
-    let _ = join(run(sdc, "WLED BLE", LedMode::Off), led_manager(ws)).await;
-
-    /*
-    let mut hue_offset = 0u8;
-
-    loop {
-        // Create rainbow effect
-        let mut colors = [RGB8::default(); 8];
-
-        for (i, color) in colors.iter_mut().enumerate() {
-            let hue = hue_offset.wrapping_add((i as u8) * 32);
-            let hsv = Hsv {
-                hue,
-                sat: 255,
-                val: 50, // Keep brightness reasonable
-            };
-            *color = hsv2rgb(hsv);
-        }
-
-        // Write colors with brightness control
-        ws.write(brightness(colors.into_iter(), 64)).await.unwrap();
-
-        // Advance the rainbow
-        hue_offset = hue_offset.wrapping_add(4);
-
-        // Wait before next frame
-        Timer::after(Duration::from_millis(25)).await;
-    }
-    */
+    let _ = join(
+        run(sdc, "WLED BLE", LedMode::Off),
+        led_manager(ws, LedMode::Off),
+    )
+    .await;
 }
 
-async fn led_manager(mut ws: Ws2812<BUFFER_SIZE>) -> ! {
+async fn led_manager(mut ws: Ws2812<BUFFER_SIZE>, mut mode: LedMode) -> ! {
     loop {
-        let mode = NOTIFIER.wait().await;
         defmt::info!("mode: {}", mode);
-
         match mode {
             LedMode::Off => {
                 let data = [RGB8::new(0, 0, 0); 8];
                 ws.write(data.into_iter()).await.unwrap();
+                mode = NOTIFIER.wait().await;
             }
             LedMode::Red => {
                 let data = [colors::RED; 8];
                 ws.write(data.into_iter()).await.unwrap();
+                mode = NOTIFIER.wait().await;
             }
             LedMode::Green => {
                 let data = [colors::GREEN; 8];
                 ws.write(data.into_iter()).await.unwrap();
+                mode = NOTIFIER.wait().await;
             }
             LedMode::Blue => {
                 let data = [colors::BLUE; 8];
                 ws.write(data.into_iter()).await.unwrap();
+                mode = NOTIFIER.wait().await;
+            }
+            LedMode::Rainbow => {
+                let mut hue_offset = 0u8;
+
+                loop {
+                    // Create rainbow effect
+                    let mut colors = [RGB8::default(); 8];
+
+                    for (i, color) in colors.iter_mut().enumerate() {
+                        let hue = hue_offset.wrapping_add((i as u8) * 32);
+                        let hsv = Hsv {
+                            hue,
+                            sat: 255,
+                            val: 50, // Keep brightness reasonable
+                        };
+                        *color = hsv2rgb(hsv);
+                    }
+
+                    // Write colors with brightness control
+                    ws.write(brightness(colors.into_iter(), 64)).await.unwrap();
+
+                    match select(Timer::after(Duration::from_millis(25)), NOTIFIER.wait()).await {
+                        Either::First(_) => {
+                            hue_offset = hue_offset.wrapping_add(4);
+                            continue;
+                        }
+                        Either::Second(new_mode) => {
+                            mode = new_mode;
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
