@@ -48,7 +48,6 @@ const PWM_PERIOD: u16 = to_ticks(FRAME_NS) as u16;
 ///
 /// The `N` value must be a multiple of 24.
 pub struct Ws2812<const N: usize> {
-    num_leds: usize,
     pwm: Option<pwm::SequencePwm<'static>>,
     buf: &'static mut [u16; N],
 }
@@ -66,7 +65,6 @@ impl<const N: usize> Ws2812<N> {
             RGB_SIZE
         );
 
-        let num_leds = N / RGB_SIZE;
         let mut config = pwm::Config::default();
         config.counter_mode = pwm::CounterMode::Up;
         config.max_duty = PWM_PERIOD;
@@ -78,7 +76,6 @@ impl<const N: usize> Ws2812<N> {
         config.ch3_drive = gpio::OutputDrive::HighDrive0Standard1;
         let pwm = pwm::SequencePwm::new_1ch(pwm, pin, config).expect("to create sequence PWM");
         Self {
-            num_leds,
             pwm: Some(pwm),
             buf,
         }
@@ -87,10 +84,8 @@ impl<const N: usize> Ws2812<N> {
     /// Number of microseconds to wait for a sequence duty cycle to run once.
     #[inline(always)]
     fn delay_micros(&self) -> u64 {
-        // Each LED requires 24 bits (8 bits each for G, R, B)
-        let num_bits = self.num_leds * RGB_SIZE;
         // Each bit takes FRAME_NS nanoseconds to transmit
-        let active_time_ns = num_bits as u32 * FRAME_NS;
+        let active_time_ns = N as u32 * FRAME_NS;
         // Convert active time to microseconds
         let active_time_us = active_time_ns / 1000;
         // Add reset time (already in microseconds)
