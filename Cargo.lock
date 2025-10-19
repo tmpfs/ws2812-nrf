@@ -71,6 +71,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2261d10cca569e4643e526d8dc2e62e433cc8aba21ab764233731f8d369bf394"
 
 [[package]]
+name = "ble-gatt-client"
+version = "0.1.0"
+dependencies = [
+ "bt-hci",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.0.1",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-nrf",
+ "embassy-nrf-ws2812-pwm",
+ "embassy-sync",
+ "embassy-time",
+ "futures",
+ "nrf-mpsl",
+ "nrf-sdc",
+ "panic-probe",
+ "rand",
+ "rand_chacha",
+ "rand_core 0.6.4",
+ "smart-leds",
+ "static_cell",
+]
+
+[[package]]
 name = "bt-hci"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,6 +972,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rainbow-strip"
+version = "0.1.0"
+dependencies = [
+ "cortex-m-rt",
+ "defmt 1.0.1",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-nrf",
+ "embassy-nrf-ws2812-pwm",
+ "embassy-time",
+ "nrf-sdc",
+ "panic-probe",
+ "smart-leds",
+ "static_cell",
+]
+
+[[package]]
 name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1178,32 +1221,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21a0236b59786fed61e2a80582dd500fe61f18b5dca67a4a067d0bc9039339cf"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "ws2812-nrf52-strip"
-version = "0.1.0"
-dependencies = [
- "bt-hci",
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.0.1",
- "defmt-rtt",
- "embassy-executor",
- "embassy-futures",
- "embassy-nrf",
- "embassy-nrf-ws2812-pwm",
- "embassy-sync",
- "embassy-time",
- "futures",
- "nrf-mpsl",
- "nrf-sdc",
- "panic-probe",
- "rand",
- "rand_chacha",
- "rand_core 0.6.4",
- "smart-leds",
- "static_cell",
 ]
 
 [[package]]

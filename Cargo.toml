@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "embassy-nrf-ws2812-pwm",
-  "strip",
+  "examples/ble_gatt_client",
+  "examples/rainbow_strip",
 ]
 resolver = "2"
 
@@ -33,7 +34,7 @@ embassy-futures = "0.1.1"
 embassy-sync = { version = "0.7", features = ["defmt"] }
 
 futures = { version = "0.3", default-features = false, features = ["async-await"]}
-nrf-sdc = { version = "0.4", default-features = false, features = ["defmt", "peripheral", "central", "nrf52840"] }
+nrf-sdc = { version = "0.4", default-features = false, features = ["defmt", "peripheral", "nrf52840"] }
 nrf-mpsl = { version = "0.3", default-features = false, features = ["defmt", "critical-section-impl"] }
 bt-hci = { version = "0.6", default-features = false, features = ["defmt"] }
 
