@@ -30,6 +30,7 @@ rand_chacha = { version = "0.3", default-features = false }
 
 smart-leds = "0.4"
 embassy-nrf-ws2812-pwm = { path = "../embassy-nrf-ws2812-pwm/" }
+# ws2812-spi = { version = "0.5", features = ["mosi_idle_high", "reset_single_transaction"] }
 
 [[bin]]
 name = "strip"

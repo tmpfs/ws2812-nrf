@@ -2,8 +2,8 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_nrf::peripherals::RNG;
-use embassy_nrf::{bind_interrupts, rng};
+use embassy_nrf::peripherals;
+use embassy_nrf::{bind_interrupts, rng, spim};
 use embassy_nrf_ws2812_pwm::Ws2812;
 use embassy_time::{Duration, Timer};
 use smart_leds::{
@@ -14,12 +14,13 @@ use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
-    RNG => rng::InterruptHandler<RNG>;
+    RNG => rng::InterruptHandler<peripherals::RNG>;
     EGU0_SWI0 => nrf_sdc::mpsl::LowPrioInterruptHandler;
     CLOCK_POWER => nrf_sdc::mpsl::ClockInterruptHandler;
     RADIO => nrf_sdc::mpsl::HighPrioInterruptHandler;
     TIMER0 => nrf_sdc::mpsl::HighPrioInterruptHandler;
     RTC0 => nrf_sdc::mpsl::HighPrioInterruptHandler;
+    SPI2 => spim::InterruptHandler<peripherals::SPI2>;
 });
 
 const NUM_LEDS: usize = 8;
@@ -32,6 +33,13 @@ async fn main(_spawner: Spawner) {
 
     let buf = LED_BUFFER.init([0u16; BUFFER_SIZE]);
     let mut ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_13, buf);
+
+    /*
+    let mut config = spim::Config::default();
+    config.frequency = spim::Frequency::M4; // ~2.4 MHz typical for WS2812
+    let spi = spim::Spim::new_txonly(p.SPI2, Irqs, p.P0_14, p.P0_13, config);
+    let mut ws = ws2812_spi::Ws2812::new(spi);
+    */
 
     // let data = [
     //     RGB8::new(10, 0, 0), // Red
