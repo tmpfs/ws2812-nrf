@@ -9,7 +9,7 @@ crate: it implements the `SmartLedsWriteAsync` trait.
 use core::ops::DerefMut;
 use embassy_nrf::{
     gpio::OutputDrive,
-    peripherals::{P0_13, PWM0},
+    peripherals::P0_13,
     pwm::{self, CounterMode, SequenceConfig, SingleSequencer},
     Peri,
 };
@@ -86,19 +86,15 @@ impl core::fmt::Debug for Error {
 
 /// Driver for a chain of WS2812-family devices using
 /// PWM. The `N` value must be a multiple of 24.
-pub struct Ws2812<const N: usize> {
+pub struct Ws2812<Pwm: pwm::Instance, const N: usize> {
     num_leds: usize,
-    pwm: Option<pwm::SequencePwm<'static, PWM0>>,
+    pwm: Option<pwm::SequencePwm<'static, Pwm>>,
     buf: Option<DmaBuffer<N>>,
 }
 
-impl<const N: usize> Ws2812<N> {
+impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
     /// Set up WS2812 chain with PWM and an output pin.
-    pub fn new(pwm: Peri<'static, PWM0>, pin: Peri<'static, P0_13>) -> Self {
-        // defmt::info!("PWM_PERIOD: {}", PWM_PERIOD);
-        // defmt::info!("RESET_TICKS: {}", RESET_TICKS);
-        // defmt::info!("RESET_TIME: {}", RESET_TIME);
-
+    pub fn new(pwm: Peri<'static, Pwm>, pin: Peri<'static, P0_13>) -> Self {
         assert!(N % RGB_SIZE == 0);
         let num_leds = N / RGB_SIZE;
         let mut config = pwm::Config::default();
@@ -134,7 +130,7 @@ impl<const N: usize> Ws2812<N> {
     }
 }
 
-impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
+impl<Pwm: pwm::Instance, const N: usize> SmartLedsWriteAsync for Ws2812<Pwm, N> {
     type Error = Error;
     type Color = RGB8;
 

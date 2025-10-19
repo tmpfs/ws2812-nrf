@@ -2,7 +2,7 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_nrf::peripherals::RNG;
+use embassy_nrf::peripherals::{PWM0, RNG};
 use embassy_nrf::{bind_interrupts, rng};
 use embassy_time::{Duration, Timer};
 use smart_leds::{
@@ -25,7 +25,7 @@ bind_interrupts!(struct Irqs {
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
-    let mut ws: Ws2812<{ 8 * 24 }> = Ws2812::new(p.PWM0, p.P0_13);
+    let mut ws: Ws2812<PWM0, { 8 * 24 }> = Ws2812::new(p.PWM0, p.P0_13);
 
     // let data = [
     //     RGB8::new(10, 0, 0), // Red
