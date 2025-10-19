@@ -1,20 +1,18 @@
-/*! # Use ws2812 LEDs with nRF52840 PWM.
-
-Based on https://github.com/BartMassey/ws2812-nrf52833-pwm
-
-This crate is intended for usage with the `smart-leds`
-crate: it implements the `SmartLedsWriteAsync` trait.
-*/
+//! Use WS2812 LEDs (aka Neopixel) with nRF52xx PWM and the embassy ecosystem.
+//!
+//! This crate is intended for usage with the `smart-leds`
+//! crate it implements the `SmartLedsWriteAsync` trait.
+//!
+//! Based on [ws2812-nrf52833-pwm](https://github.com/BartMassey/ws2812-nrf52833-pwm).
 
 use core::ops::DerefMut;
 use embassy_nrf::{
-    gpio::OutputDrive,
-    peripherals::P0_13,
+    gpio::{self, OutputDrive},
     pwm::{self, CounterMode, SequenceConfig, SingleSequencer},
     Peri,
 };
-use embassy_time::Timer;
-use smart_leds::{SmartLedsWriteAsync, RGB8};
+use embassy_time::{block_for, Timer};
+use smart_leds::{SmartLedsWrite, SmartLedsWriteAsync, RGB8};
 
 /// WS2812 0-bit high time in ns.
 const T0H_NS: u32 = 400;
@@ -26,7 +24,6 @@ const FRAME_NS: u32 = 1250;
 const RESET_TIME: u32 = 270;
 /// PWM clock in MHz.
 const PWM_CLOCK: u32 = 16;
-
 /// Size of the RGB color definition.
 const RGB_SIZE: usize = 24;
 
@@ -71,21 +68,22 @@ impl<const N: usize> DerefMut for DmaBuffer<N> {
 }
 
 /// Error during WS2812 driver operation.
+#[derive(Debug)]
 pub enum Error {
     /// PWM error.
     PwmError(pwm::Error),
 }
 
-impl core::fmt::Debug for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::PwmError(err) => write!(f, "pwm error: {:?}", err),
-        }
+impl From<pwm::Error> for Error {
+    fn from(value: pwm::Error) -> Self {
+        Self::PwmError(value)
     }
 }
 
 /// Driver for a chain of WS2812-family devices using
-/// PWM. The `N` value must be a multiple of 24.
+/// PWM and a single GPIO.
+///
+/// The `N` value must be a multiple of 24.
 pub struct Ws2812<Pwm: pwm::Instance, const N: usize> {
     num_leds: usize,
     pwm: Option<pwm::SequencePwm<'static, Pwm>>,
@@ -94,8 +92,9 @@ pub struct Ws2812<Pwm: pwm::Instance, const N: usize> {
 
 impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
     /// Set up WS2812 chain with PWM and an output pin.
-    pub fn new(pwm: Peri<'static, Pwm>, pin: Peri<'static, P0_13>) -> Self {
-        assert!(N % RGB_SIZE == 0);
+    pub fn new<P: gpio::Pin>(pwm: Peri<'static, Pwm>, pin: Peri<'static, P>) -> Self {
+        assert!(N % RGB_SIZE == 0, "N must be a multiple of 24");
+
         let num_leds = N / RGB_SIZE;
         let mut config = pwm::Config::default();
         config.counter_mode = CounterMode::Up;
@@ -106,8 +105,7 @@ impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
         config.ch1_drive = OutputDrive::HighDrive0Standard1;
         config.ch2_drive = OutputDrive::HighDrive0Standard1;
         config.ch3_drive = OutputDrive::HighDrive0Standard1;
-        let pwm = pwm::SequencePwm::new_1ch(pwm, pin, config).expect("to create pwm");
-
+        let pwm = pwm::SequencePwm::new_1ch(pwm, pin, config).expect("to create sequence PWM");
         Self {
             num_leds,
             pwm: Some(pwm),
@@ -115,8 +113,7 @@ impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
         }
     }
 
-    /// Number of microseconds to wait for a sequence duty cycle
-    /// to run once.
+    /// Number of microseconds to wait for a sequence duty cycle to run once.
     fn delay_micros(&self) -> u64 {
         // Each LED requires 24 bits (8 bits each for G, R, B)
         let num_bits = self.num_leds * RGB_SIZE;
@@ -128,19 +125,13 @@ impl<Pwm: pwm::Instance, const N: usize> Ws2812<Pwm, N> {
         let total_time_us = active_time_us + RESET_TIME;
         total_time_us as u64
     }
-}
 
-impl<Pwm: pwm::Instance, const N: usize> SmartLedsWriteAsync for Ws2812<Pwm, N> {
-    type Error = Error;
-    type Color = RGB8;
-
-    /// Write all the items of an iterator to a ws2812 strip
-    async fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
+    fn take_buffer<T, I>(&mut self, iterator: T) -> DmaBuffer<N>
     where
         T: IntoIterator<Item = I>,
-        I: Into<Self::Color>,
+        I: Into<RGB8>,
     {
-        let mut buffer = self.buf.take().unwrap();
+        let mut buffer = self.buf.take().expect("to take DMA buffer");
         for (item, locs) in iterator.into_iter().zip(buffer.chunks_mut(RGB_SIZE)) {
             let item = item.into();
             let color = ((item.g as u32) << 16) | ((item.r as u32) << 8) | (item.b as u32);
@@ -149,18 +140,60 @@ impl<Pwm: pwm::Instance, const N: usize> SmartLedsWriteAsync for Ws2812<Pwm, N> 
                 *loc = BITS[b as usize];
             }
         }
+        buffer
+    }
 
-        let mut pwm = self.pwm.take().unwrap();
+    fn sequence_config(&self) -> SequenceConfig {
         let mut conf = SequenceConfig::default();
         conf.refresh = 0;
         conf.end_delay = RESET_TICKS;
-        let seq = SingleSequencer::new(&mut pwm, buffer.as_ref(), conf);
+        conf
+    }
+}
 
-        seq.start(pwm::SingleSequenceMode::Times(1)).unwrap();
+impl<Pwm: pwm::Instance, const N: usize> SmartLedsWrite for Ws2812<Pwm, N> {
+    type Error = Error;
+    type Color = RGB8;
+
+    /// Write all the items of an iterator to a WS2812 strip
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
+    where
+        T: IntoIterator<Item = I>,
+        I: Into<Self::Color>,
+    {
+        let buffer = self.take_buffer(iterator);
+        let mut pwm = self.pwm.take().expect("to take sequence PWM");
+        let seq = SingleSequencer::new(&mut pwm, buffer.as_ref(), self.sequence_config());
+        seq.start(pwm::SingleSequenceMode::Times(1))?;
+
+        block_for(embassy_time::Duration::from_micros(self.delay_micros()));
+
+        drop(seq);
+        self.pwm = Some(pwm);
+        self.buf = Some(buffer);
+
+        Ok(())
+    }
+}
+
+impl<Pwm: pwm::Instance, const N: usize> SmartLedsWriteAsync for Ws2812<Pwm, N> {
+    type Error = Error;
+    type Color = RGB8;
+
+    /// Write all the items of an iterator to a WS2812 strip
+    async fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
+    where
+        T: IntoIterator<Item = I>,
+        I: Into<Self::Color>,
+    {
+        let buffer = self.take_buffer(iterator);
+
+        let mut pwm = self.pwm.take().expect("to take sequence PWM");
+        let seq = SingleSequencer::new(&mut pwm, buffer.as_ref(), self.sequence_config());
+        seq.start(pwm::SingleSequenceMode::Times(1))?;
         Timer::after_micros(self.delay_micros()).await;
 
         drop(seq);
-
         self.pwm = Some(pwm);
         self.buf = Some(buffer);
 
