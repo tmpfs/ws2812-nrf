@@ -43,19 +43,6 @@ const BITS: [u16; 2] = [
 /// Total PWM period in ticks.
 const PWM_PERIOD: u16 = to_ticks(FRAME_NS) as u16;
 
-/// Error during WS2812 driver operation.
-#[derive(Debug)]
-pub enum Error {
-    /// PWM error.
-    PwmError(pwm::Error),
-}
-
-impl From<pwm::Error> for Error {
-    fn from(value: pwm::Error) -> Self {
-        Self::PwmError(value)
-    }
-}
-
 /// Driver for a chain of WS2812-family devices using
 /// PWM and a single GPIO.
 ///
@@ -137,7 +124,7 @@ impl<const N: usize> Ws2812<N> {
 }
 
 impl<const N: usize> SmartLedsWrite for Ws2812<N> {
-    type Error = Error;
+    type Error = pwm::Error;
     type Color = RGB8;
 
     /// Write all the items of an iterator to a WS2812 strip
@@ -161,7 +148,7 @@ impl<const N: usize> SmartLedsWrite for Ws2812<N> {
 }
 
 impl<const N: usize> SmartLedsWriteAsync for Ws2812<N> {
-    type Error = Error;
+    type Error = pwm::Error;
     type Color = RGB8;
 
     /// Write all the items of an iterator to a WS2812 strip
