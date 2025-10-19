@@ -1,7 +1,7 @@
 //! Use WS2812 LEDs (aka Neopixel) with nRFxx PWM and the embassy ecosystem.
 //!
 //! This crate is intended for usage with the `smart-leds`
-//! crate it implements the `SmartLedsWriteAsync` trait.
+//! crate it implements the `SmartLedsWrite` and `SmartLedsWriteAsync` traits.
 //!
 //! Based on [ws2812-nrf52833-pwm](https://github.com/BartMassey/ws2812-nrf52833-pwm).
 

@@ -5,8 +5,11 @@ version      = "0.1.0"
 description  = "Driver for WS2812 LEDs using embassy-nrf PWM and smart-leds"
 license      = "MIT OR Apache-2.0"
 
+[package.metadata.docs.rs]
+features = ["nrf52840"]
+targets = ["thumbv7em-none-eabihf"]
+
 [features]
-defmt = ["embassy-time/defmt", "embassy-time/defmt-timestamp-uptime", "embassy-nrf/defmt"]
 nrf51 = ["embassy-nrf/nrf51"]
 nrf52805 = ["embassy-nrf/nrf52805"]
 nrf52810 = ["embassy-nrf/nrf52810"]
