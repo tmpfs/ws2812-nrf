@@ -3,6 +3,7 @@ members = [
   "embassy-nrf-ws2812-pwm",
   "examples/ble_gatt_server",
   "examples/rainbow_strip",
+  "examples/bit_64",
 ]
 resolver = "2"
 
