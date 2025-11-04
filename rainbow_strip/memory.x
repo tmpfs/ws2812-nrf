@@ -1,1 +1,1 @@
-../../memory.x
+../memory.x

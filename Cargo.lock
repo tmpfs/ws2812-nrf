@@ -126,7 +126,7 @@ dependencies = [
  "embedded-io",
  "embedded-io-async",
  "futures-intrusive",
- "heapless 0.8.0",
+ "heapless 0.9.1",
 ]
 
 [[package]]
@@ -450,6 +450,8 @@ dependencies = [
 [[package]]
 name = "embassy-nrf-ws2812-pwm"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68261d016817aa8d7cc1399f0456dcdce9b7d0f2a955ac0af148e66f12aad1f5"
 dependencies = [
  "embassy-nrf",
  "embassy-time",
