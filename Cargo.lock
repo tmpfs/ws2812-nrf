@@ -84,6 +84,7 @@ dependencies = [
 name = "bit-64"
 version = "0.1.0"
 dependencies = [
+ "cortex-m",
  "cortex-m-rt",
  "defmt 1.0.1",
  "defmt-rtt",
@@ -91,7 +92,6 @@ dependencies = [
  "embassy-nrf",
  "embassy-nrf-ws2812-pwm",
  "embassy-time",
- "nrf-sdc",
  "panic-probe",
  "smart-leds",
  "static_cell",
@@ -1066,6 +1066,7 @@ dependencies = [
 name = "rainbow-strip"
 version = "0.1.0"
 dependencies = [
+ "cortex-m",
  "cortex-m-rt",
  "defmt 1.0.1",
  "defmt-rtt",
@@ -1073,7 +1074,6 @@ dependencies = [
  "embassy-nrf",
  "embassy-nrf-ws2812-pwm",
  "embassy-time",
- "nrf-sdc",
  "panic-probe",
  "smart-leds",
  "static_cell",
