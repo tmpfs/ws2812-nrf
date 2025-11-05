@@ -7,6 +7,7 @@ use embassy_nrf::peripherals;
 use embassy_nrf::{bind_interrupts, twim};
 use embassy_nrf_ws2812_pwm::Ws2812;
 use embassy_time::{Delay, Timer};
+use libm::{logf, roundf};
 use smart_leds::colors;
 use smart_leds::{SmartLedsWriteAsync as _, brightness};
 use static_cell::{ConstStaticCell, StaticCell};
@@ -15,6 +16,24 @@ use {defmt_rtt as _, panic_probe as _};
 bind_interrupts!(struct Irqs {
     TWISPI0 => twim::InterruptHandler<peripherals::TWISPI0>;
 });
+
+pub fn lux_to_u8(lux: f32, min_lux: f32, max_lux: f32, min_out: u8, max_out: u8) -> u8 {
+    let clamped = lux.clamp(min_lux, max_lux);
+
+    // Precalculate constants with +1 to avoid log(0)
+    let ln_min = logf(min_lux + 1.0);
+    let ln_max = logf(max_lux + 1.0);
+    let ln_val = logf(clamped + 1.0);
+
+    // Normalize to 0..1 with logarithmic curve
+    let norm = (ln_val - ln_min) / (ln_max - ln_min);
+
+    // Map to output range
+    let out_range = (max_out - min_out) as f32;
+    let out = min_out as f32 + norm * out_range;
+
+    roundf(out).clamp(u8::MIN as f32, u8::MAX as f32) as u8
+}
 
 const NUM_LEDS: usize = 1;
 const BUFFER_SIZE: usize = NUM_LEDS * 24;
@@ -42,15 +61,26 @@ async fn main(_spawner: Spawner) {
     );
 
     let mut bh1750 = BH1750::new(i2c, Delay, false);
+    let mut smoothed_lux: Option<f32> = None;
+
     loop {
         let lux = bh1750
-            .get_one_time_measurement(Resolution::High)
+            .get_one_time_measurement(Resolution::Low)
             .expect("to read BH1750");
-        defmt::info!("Lux = {:?}", lux);
+        let s_lux = smoothed_lux.get_or_insert(lux);
 
-        let data = [colors::BLUE; NUM_LEDS];
-        ws.write(brightness(data.into_iter(), 20)).await.unwrap();
+        // 0.10–0.15 recommended
+        let alpha = 0.12;
+        *s_lux = *s_lux + alpha * (lux - *s_lux);
 
-        Timer::after_secs(5).await
+        let pwm = u8::MAX - lux_to_u8(*s_lux, 5.0, 200.0, 5, 255);
+
+        // defmt::info!("pwm: {}", pwm);
+
+        let data = [colors::WHITE_SMOKE; NUM_LEDS];
+        ws.write(brightness(data.into_iter(), pwm))
+            .await
+            .expect("to write to LED");
+        Timer::after_millis(15).await
     }
 }
