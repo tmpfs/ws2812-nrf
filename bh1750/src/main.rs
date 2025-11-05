@@ -27,10 +27,11 @@ pub fn lux_to_u8(lux: f32, min_lux: f32, max_lux: f32, min_out: u8, max_out: u8)
 
     // Normalize to 0..1 with logarithmic curve
     let norm = (ln_val - ln_min) / (ln_max - ln_min);
+    let inv = 1.0 - norm;
 
     // Map to output range
     let out_range = (max_out - min_out) as f32;
-    let out = min_out as f32 + norm * out_range;
+    let out = min_out as f32 + inv * out_range;
 
     roundf(out).clamp(u8::MIN as f32, u8::MAX as f32) as u8
 }
@@ -75,9 +76,9 @@ async fn main(_spawner: Spawner) {
 
         let pwm = u8::MAX - lux_to_u8(*s_lux, 5.0, 200.0, 5, 255);
 
-        // defmt::info!("pwm: {}", pwm);
+        defmt::info!("pwm: {}", pwm);
 
-        let data = [colors::WHITE_SMOKE; NUM_LEDS];
+        let data = [colors::ORANGE_RED; NUM_LEDS];
         ws.write(brightness(data.into_iter(), pwm))
             .await
             .expect("to write to LED");
