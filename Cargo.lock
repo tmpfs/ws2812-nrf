@@ -33,6 +33,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "bh1750"
+version = "0.1.0"
+dependencies = [
+ "bh1750 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.0.1",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-nrf",
+ "embassy-nrf-ws2812-pwm",
+ "embassy-time",
+ "nrf-sdc",
+ "panic-probe",
+ "smart-leds",
+ "static_cell",
+]
+
+[[package]]
+name = "bh1750"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eaf0f2134f0b6ac900efff9be5498d1736b8e9cf27369858e34e383da406666d"
+dependencies = [
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.72.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -200,6 +228,7 @@ checksum = "8ec610d8f49840a5b376c69663b6369e71f4b34484b9b2eb29fb918d92516cb9"
 dependencies = [
  "bare-metal",
  "bitfield",
+ "critical-section",
  "embedded-hal 0.2.7",
  "volatile-register",
 ]
