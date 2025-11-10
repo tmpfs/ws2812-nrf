@@ -20,7 +20,7 @@ async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
 
     let buf = LED_BUFFER.init([0u16; BUFFER_SIZE]);
-    let mut ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_13, buf);
+    let mut ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_14, buf);
 
     let mut hue_offset = 0u8;
     loop {
