@@ -3,6 +3,7 @@
 
 use bh1750::{BH1750, Resolution};
 use embassy_executor::Spawner;
+use embassy_nrf::gpio::{Level, Output, OutputDrive};
 use embassy_nrf::peripherals;
 use embassy_nrf::{bind_interrupts, twim};
 use embassy_nrf_ws2812_pwm::Ws2812;
@@ -44,14 +45,19 @@ static LED_BUFFER: StaticCell<[u16; BUFFER_SIZE]> = StaticCell::new();
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
 
+    // Green LED pin on the Makerdiary nRF52840 connect kit
+    // used to indicate code is running
+    let mut led = Output::new(p.P1_11, Level::High, OutputDrive::Standard);
+    led.set_low();
+
+    // Prepare the WS2812 LED
     let buf = LED_BUFFER.init([0u16; BUFFER_SIZE]);
     let mut ws: Ws2812<_> = Ws2812::new(p.PWM0, p.P0_13, buf);
 
-    let sda = p.P0_03;
-    let scl = p.P0_04;
-
     // Create I2C instance
     static RAM_BUFFER: ConstStaticCell<[u8; 16]> = ConstStaticCell::new([0; 16]);
+    let sda = p.P1_01;
+    let scl = p.P1_02;
     let i2c = twim::Twim::new(
         p.TWISPI0,
         Irqs,
@@ -62,26 +68,41 @@ async fn main(_spawner: Spawner) {
     );
 
     let mut bh1750 = BH1750::new(i2c, Delay, false);
+    bh1750
+        .start_continuous_measurement(Resolution::High)
+        .expect("to start measuring light sensor");
     let mut smoothed_lux: Option<f32> = None;
 
     loop {
-        let lux = bh1750
-            .get_one_time_measurement(Resolution::Low)
-            .expect("to read BH1750");
-        let s_lux = smoothed_lux.get_or_insert(lux);
+        match bh1750.get_current_measurement(Resolution::High) {
+            Ok(lux) => {
+                defmt::info!("Lux: {}", lux);
 
-        // 0.10–0.15 recommended
-        let alpha = 0.12;
-        *s_lux = *s_lux + alpha * (lux - *s_lux);
+                let s_lux = smoothed_lux.get_or_insert(lux);
 
-        let pwm = u8::MAX - lux_to_u8(*s_lux, 5.0, 200.0, 5, 255);
+                // 0.10–0.15 recommended
+                let alpha = 0.12;
+                *s_lux = *s_lux + alpha * (lux - *s_lux);
 
-        defmt::info!("pwm: {}", pwm);
+                let pwm = u8::MAX - lux_to_u8(*s_lux, 5.0, 2000.0, 5, 255);
 
-        let data = [colors::ORANGE_RED; NUM_LEDS];
-        ws.write(brightness(data.into_iter(), pwm))
-            .await
-            .expect("to write to LED");
-        Timer::after_millis(15).await
+                defmt::info!("pwm: {}", pwm);
+
+                // Show activity on the MCU LED
+                led.set_high();
+                Timer::after_millis(15).await;
+                led.set_low();
+
+                // Update the WS2812 LED
+                let data = [colors::ORANGE_RED; NUM_LEDS];
+                ws.write(brightness(data.into_iter(), pwm))
+                    .await
+                    .expect("to write to LED");
+            }
+            Err(_) => {
+                defmt::warn!("error getting measurement");
+            }
+        }
+        Timer::after_millis(15).await;
     }
 }
