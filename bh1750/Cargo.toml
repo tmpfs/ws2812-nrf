@@ -3,7 +3,7 @@ edition      = "2024"
 name         = "bh1750"
 version      = "0.1.0"
 publish      = false
-description  = "Example of running a single LED based on the BH1750 light sensor"
+description  = "Control a single WS2812 LED based on the Lux measured from a BH1750 light sensor"
 
 [dependencies]
 smart-leds.workspace = true

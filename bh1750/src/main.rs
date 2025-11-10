@@ -46,7 +46,7 @@ async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
 
     // Green LED pin on the Makerdiary nRF52840 connect kit
-    // used to indicate code is running
+    // used to indicate firmware is running
     let mut led = Output::new(p.P1_11, Level::High, OutputDrive::Standard);
     led.set_low();
 
@@ -76,7 +76,7 @@ async fn main(_spawner: Spawner) {
     loop {
         match bh1750.get_current_measurement(Resolution::High) {
             Ok(lux) => {
-                defmt::info!("Lux: {}", lux);
+                defmt::debug!("Lux: {}", lux);
 
                 let s_lux = smoothed_lux.get_or_insert(lux);
 
@@ -86,15 +86,11 @@ async fn main(_spawner: Spawner) {
 
                 let pwm = u8::MAX - lux_to_u8(*s_lux, 5.0, 2000.0, 5, 255);
 
-                defmt::info!("pwm: {}", pwm);
+                defmt::debug!("PWM: {}", pwm);
 
-                // Show activity on the MCU LED
-                led.set_high();
-                Timer::after_millis(15).await;
-                led.set_low();
+                let data = [colors::DARK_CYAN; NUM_LEDS];
 
                 // Update the WS2812 LED
-                let data = [colors::ORANGE_RED; NUM_LEDS];
                 ws.write(brightness(data.into_iter(), pwm))
                     .await
                     .expect("to write to LED");
